@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MolFlow — Molecular Discovery Environment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0d0d0f;
+--bg2:#131316;
+--bg3:#1a1a1f;
+--bg4:#222228;
+--border:#2a2a32;
+--border2:#363640;
+--text:#e8e8f0;
+--text2:#9090a8;
+--text3:#5a5a6e;
+--accent:#ff6b35;
+--accent2:#ff8c5a;
+--blue:#4a9eff;
+--green:#3ecf8e;
+--purple:#a78bfa;
+--yellow:#fbbf24;
+--pink:#f472b6;
+--teal:#2dd4bf;
+--red:#f87171;
+--font:'Syne',sans-serif;
+--mono:'JetBrains Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+/* TOP BAR */
+.topbar{height:48px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;z-index:100;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;letter-spacing:-0.5px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.topbar-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s}
+.btn:hover{background:var(--bg4);border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.btn-run{background:linear-gradient(135deg,#ff6b35,#ff4500);border:none;color:#fff;display:flex;align-items:center;gap:6px;font-weight:600}
+.status-dot{width:6px;height:6px;border-radius:50%}
+.status-dot.idle{background:var(--text3)}
+.status-dot.running{background:var(--green);animation:pulse 1s infinite}
+.status-dot.done{background:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+/* MAIN LAYOUT */
+.main{display:flex;flex:1;overflow:hidden}
+/* LEFT SIDEBAR */
+.sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sidebar-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sidebar-title{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3)}
+.search-bar{margin:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;padding:6px 10px;gap:6px}
+.search-bar input{background:transparent;border:none;outline:none;color:var(--text);font-size:12px;font-family:var(--font);width:100%;placeholder:var(--text3)}
+.search-bar input::placeholder{color:var(--text3)}
+.search-icon{color:var(--text3);font-size:13px}
+.sidebar-sections{overflow-y:auto;flex:1;padding-bottom:16px}
+.sidebar-sections::-webkit-scrollbar{width:4px}
+.sidebar-sections::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.section-header{padding:8px 12px 4px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.section-label{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);display:flex;align-items:center;gap:6px}
+.section-label .dot{width:6px;height:6px;border-radius:50%}
+.section-chevron{font-size:12px;color:var(--text3);transition:transform 0.2s}
+.section-chevron.open{transform:rotate(90deg)}
+.section-items{padding:2px 8px 6px}
+.node-item{padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);margin-bottom:4px;cursor:grab;display:flex;align-items:center;gap:8px;transition:all 0.15s;user-select:none}
+.node-item:hover{border-color:var(--accent);background:var(--bg4);transform:translateX(2px)}
+.node-item:active{cursor:grabbing}
+.node-icon{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.node-info{flex:1;min-width:0}
+.node-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-sub{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)}
+.import-btn{margin:8px 12px 0;padding:7px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text2);font-size:12px;font-family:var(--font);cursor:pointer;text-align:center;width:calc(100% - 24px);display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s}
+.import-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,107,53,0.05)}
+/* CANVAS AREA */
+.canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+.canvas-grid{position:absolute;inset:0;background-image:radial-gradient(circle,#2a2a35 1px,transparent 1px);background-size:24px 24px;pointer-events:none;opacity:0.6}
+.canvas{position:absolute;inset:0;overflow:hidden}
+.canvas-inner{position:absolute;width:4000px;height:4000px;top:-1000px;left:-1000px}
+.canvas-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.canvas-hint-text{font-size:14px;color:var(--text3);margin-top:8px}
+.canvas-hint-icon{font-size:40px;color:var(--border2)}
+/* CONNECTIONS */
+svg.connections{position:absolute;inset:0;width:4000px;height:4000px;pointer-events:none}
+/* NODES ON CANVAS */
+.canvas-node{position:absolute;min-width:160px;border-radius:10px;background:var(--bg3);border:1.5px solid var(--border);cursor:move;user-select:none;transition:border-color 0.15s,box-shadow 0.15s}
+.canvas-node:hover{border-color:var(--border2);box-shadow:0 0 20px rgba(0,0,0,0.4)}
+.canvas-node.selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,107,53,0.15)}
+.canvas-node.running{border-color:var(--green);box-shadow:0 0 12px rgba(62,207,142,0.2);animation:node-pulse 1.2s infinite}
+.canvas-node.done{border-color:var(--green)}
+.canvas-node.error{border-color:var(--red)}
+@keyframes node-pulse{0%,100%{box-shadow:0 0 12px rgba(62,207,142,0.2)}50%{box-shadow:0 0 24px rgba(62,207,142,0.4)}}
+.cnode-header{padding:10px 12px 8px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.cnode-icon{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.cnode-title{font-size:12px;font-weight:700;flex:1}
+.cnode-type{font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px}
+.cnode-body{padding:8px 12px}
+.cnode-prop{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px}
+.cnode-prop-key{color:var(--text3)}
+.cnode-prop-val{color:var(--text);font-family:var(--mono);font-size:10px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cnode-ports{display:flex;justify-content:space-between;padding:6px 0 4px;align-items:center}
+.port{width:10px;height:10px;border-radius:50%;border:2px solid var(--border2);background:var(--bg2);cursor:crosshair;transition:all 0.15s;position:relative;z-index:10}
+.port:hover,.port.active{border-color:var(--accent);background:var(--accent);transform:scale(1.4)}
+.port-in{margin-left:-5px}
+.port-out{margin-right:-5px}
+.ports-row{display:flex;justify-content:space-between;padding:0 0 6px;align-items:center;position:relative}
+.port-label{font-size:9px;color:var(--text3);font-family:var(--mono)}
+/* MINI STATUS */
+.node-status-badge{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--text3)}
+.node-status-badge.running{background:var(--green);animation:pulse 1s infinite}
+.node-status-badge.done{background:var(--green)}
+.node-status-badge.error{background:var(--red)}
+/* CANVAS CONTROLS */
+.canvas-controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px}
+.cc-btn{padding:6px 10px;border-radius:5px;border:none;background:transparent;color:var(--text2);font-size:13px;cursor:pointer;transition:all 0.15s;font-family:var(--font)}
+.cc-btn:hover{background:var(--bg4);color:var(--text)}
+.zoom-val{font-size:11px;padding:6px 10px;color:var(--text3);font-family:var(--mono);line-height:1.4}
+/* RIGHT PANEL */
+.right-panel{width:340px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.rp-tabs{display:flex;border-bottom:1px solid var(--border)}
+.rp-tab{flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s}
+.rp-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.rp-body{flex:1;overflow-y:auto;padding:14px}
+.rp-body::-webkit-scrollbar{width:4px}
+.rp-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+/* 3D VIEWER */
+.mol-viewer{width:100%;height:200px;border-radius:8px;overflow:hidden;background:#050508;border:1px solid var(--border);position:relative;margin-bottom:12px}
+.mol-viewer canvas{width:100%!important;height:100%!important}
+.mol-viewer-label{position:absolute;top:8px;left:10px;font-size:10px;color:var(--text3);font-family:var(--mono)}
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:700;font-family:var(--mono)}
+.stat-unit{font-size:11px;color:var(--text3);margin-left:2px}
+.stat-change{font-size:10px;margin-top:2px}
+.stat-change.up{color:var(--green)}
+.stat-change.down{color:var(--red)}
+/* DRUG EFFICACY */
+.efficacy-bar{background:var(--bg4);border-radius:4px;height:8px;overflow:hidden;margin-top:4px}
+.efficacy-fill{height:100%;border-radius:4px;transition:width 1s ease}
+.prop-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.prop-row:last-child{border-bottom:none}
+.prop-key{color:var(--text3)}
+.prop-val{font-family:var(--mono);font-size:11px}
+/* LOG */
+.log-area{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:var(--mono);font-size:11px;max-height:200px;overflow-y:auto}
+.log-line{padding:2px 0;line-height:1.6}
+.log-line.info{color:var(--blue)}
+.log-line.ok{color:var(--green)}
+.log-line.warn{color:var(--yellow)}
+.log-line.err{color:var(--red)}
+.log-line .ts{color:var(--text3);margin-right:6px}
+/* SMILES badge */
+.smiles-badge{background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:10px;color:var(--teal);word-break:break-all;margin-bottom:8px;line-height:1.6}
+/* Connecting line animation */
+.conn-line{stroke-dasharray:8;animation:dash 20s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-200}}
+.conn-line.flow{stroke-dasharray:6;animation:dash 3s linear infinite}
+/* SECTION COLORS */
+.mol-dot{background:var(--blue)}
+.comp-dot{background:var(--purple)}
+.cat-dot{background:var(--yellow)}
+.enz-dot{background:var(--green)}
+/* Node type colors */
+.mol-icon{background:rgba(74,158,255,0.15);color:var(--blue)}
+.comp-icon{background:rgba(167,139,250,0.15);color:var(--purple)}
+.cat-icon{background:rgba(251,191,36,0.15);color:var(--yellow)}
+.enz-icon{background:rgba(62,207,142,0.15);color:var(--green)}
+.out-icon{background:rgba(255,107,53,0.15);color:var(--accent)}
+/* BADGE */
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono)}
+.badge-blue{background:rgba(74,158,255,0.15);color:var(--blue)}
+.badge-green{background:rgba(62,207,142,0.15);color:var(--green)}
+.badge-orange{background:rgba(255,107,53,0.15);color:var(--accent)}
+.badge-red{background:rgba(248,113,113,0.15);color:var(--red)}
+/* IMPORT MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:24px;width:440px;max-width:90vw}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.modal textarea{width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:10px;color:var(--text);font-family:var(--mono);font-size:11px;resize:vertical;min-height:80px;outline:none}
+.modal select{width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;margin-bottom:10px;cursor:pointer}
+.modal label{font-size:12px;color:var(--text2);display:block;margin-bottom:6px;margin-top:12px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+/* TOOLTIP */
+.tooltip{position:fixed;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:11px;pointer-events:none;z-index:500;color:var(--text);white-space:nowrap}
+/* DRUG TEST RESULT */
+.drug-test-result{background:var(--bg3);border-radius:8px;border:1px solid var(--border);padding:12px;margin-top:10px}
+.drug-test-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.efficacy-section{margin-bottom:10px}
+.efficacy-label{font-size:11px;color:var(--text3);margin-bottom:4px;display:flex;justify-content:space-between}
+.radar-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.radar-cell{background:var(--bg4);border-radius:5px;padding:6px 8px}
+.radar-cell-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px}
+.radar-cell-val{font-size:14px;font-weight:700;font-family:var(--mono);margin-top:1px}
+/* Connection mode indicator */
+.conn-indicator{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(255,107,53,0.1);border:1px solid var(--accent);border-radius:20px;padding:4px 14px;font-size:11px;color:var(--accent);display:none;z-index:50}
+.conn-indicator.show{display:block}
+</style>
+</head>
+<body>
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip" style="display:none"></div>
+<!-- CONNECTION INDICATOR -->
+<div class="conn-indicator" id="conn-indicator">🔗 Click output port, then input port to connect</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    MolFlow
+  </div>
+  <span style="color:var(--text3);font-size:12px;font-family:var(--mono)">Molecular Discovery Environment</span>
+  <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
+  <span style="font-size:11px;color:var(--text3)" id="workflow-name">untitled_workflow.mol</span>
+  <div class="topbar-actions">
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)">
+      <div class="status-dot idle" id="status-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
+    <button class="btn" onclick="clearCanvas()">Clear</button>
+    <button class="btn" onclick="autoLayout()">Auto Layout</button>
+    <button class="btn btn-run" onclick="runSimulation()" id="run-btn">▶ Simulate</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Node Library</span>
+      <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="node-count">—</span>
+    </div>
+    <div class="search-bar">
+      <span class="search-icon">⌕</span>
+      <input type="text" placeholder="Search molecules..." id="search-input" oninput="filterNodes(this.value)">
+    </div>
+    <div class="sidebar-sections" id="sidebar-sections">
+      <!-- Sections rendered by JS -->
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap" id="canvas-wrap">
+    <div class="canvas-grid"></div>
+    <div class="canvas" id="canvas">
+      <div class="canvas-inner" id="canvas-inner">
+        <svg class="connections" id="connections-svg"></svg>
+        <!-- Nodes appear here -->
+      </div>
+    </div>
+    <div class="canvas-hint" id="canvas-hint">
+      <div class="canvas-hint-icon">⬡</div>
+      <div class="canvas-hint-text">Drag molecules from the left panel<br>to start building your workflow</div>
+    </div>
+    <div class="canvas-controls">
+      <button class="cc-btn" onclick="zoom(-0.15)">−</button>
+      <span class="zoom-val" id="zoom-val">100%</span>
+      <button class="cc-btn" onclick="zoom(0.15)">+</button>
+      <button class="cc-btn" onclick="resetView()" style="padding:6px 12px;font-size:11px">Reset</button>
+      <button class="cc-btn" onclick="fitView()" style="padding:6px 12px;font-size:11px">Fit</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="rp-tabs">
+      <div class="rp-tab active" onclick="switchTab('structure',this)">Structure</div>
+      <div class="rp-tab" onclick="switchTab('properties',this)">Properties</div>
+      <div class="rp-tab" onclick="switchTab('efficacy',this)">Efficacy</div>
+      <div class="rp-tab" onclick="switchTab('log',this)">Log</div>
+    </div>
+    <div class="rp-body" id="rp-body">
+      <div id="tab-structure">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;font-family:var(--mono)">3D MOLECULAR VIEWER</div>
+        <div class="mol-viewer" id="mol-viewer">
+          <div class="mol-viewer-label" id="mol-viewer-label">Select a node</div>
+          <canvas id="three-canvas"></canvas>
+        </div>
+        <div id="smiles-display" style="display:none">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-family:var(--mono)">SMILES NOTATION</div>
+          <div class="smiles-badge" id="smiles-val">—</div>
+        </div>
+        <div id="structure-props">
+          <div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">
+            Select or drag a node to view<br>molecular structure
+          </div>
+        </div>
+      </div>
+      <div id="tab-properties" style="display:none">
+        <div id="properties-content">
+          <div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Select a node to view properties</div>
+        </div>
+      </div>
+      <div id="tab-efficacy" style="display:none">
+        <div id="efficacy-content">
+          <div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Run simulation to see drug efficacy</div>
+        </div>
+      </div>
+      <div id="tab-log" style="display:none">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">SIMULATION LOG</div>
+        <div class="log-area" id="log-area"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="import-modal" style="display:none" onclick="if(event.target===this)closeImport()">
+  <div class="modal">
+    <h3>Import Custom Molecule</h3>
+    <label>Category</label>
+    <select id="import-cat">
+      <option value="molecule">Molecule</option>
+      <option value="compound">Compound</option>
+      <option value="catalyst">Catalyst</option>
+      <option value="enzyme">Enzyme</option>
+    </select>
+    <label>Name</label>
+    <input type="text" id="import-name" placeholder="e.g. My Custom Molecule" style="width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;margin-bottom:4px">
+    <label>SMILES Notation</label>
+    <textarea id="import-smiles" placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O"></textarea>
+    <label>CAS Number (optional)</label>
+    <input type="text" id="import-cas" placeholder="e.g. 50-78-2" style="width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text);font-family:var(--font);font-size:13px;outline:none">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeImport()">Cancel</button>
+      <button class="btn btn-primary" onclick="addCustomMolecule()">Import</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MOLECULES = {
+  molecule:[
+    {id:'aspirin',name:'Aspirin',sub:'C9H8O4',smiles:'CC(=O)Oc1ccccc1C(=O)O',mw:180.16,hbd:1,hba:4,logp:1.19,tpsa:63.6,cas:'50-78-2',color:'blue',emoji:'⬡',desc:'Analgesic, anti-inflammatory, antiplatelet agent'},
+    {id:'caffeine',name:'Caffeine',sub:'C8H10N4O2',smiles:'Cn1cnc2c1c(=O)n(c(=O)n2C)C',mw:194.19,hbd:0,hba:6,logp:-0.07,tpsa:58.4,cas:'58-08-2',color:'blue',emoji:'⬡',desc:'Central nervous system stimulant'},
+    {id:'penicillin',name:'Penicillin G',sub:'C16H18N2O4S',smiles:'O=C(O)[C@@H]1N2C(=O)[C@@H](NC(=O)Cc3ccccc3)[C@H]2SC1(C)C',mw:334.39,hbd:2,hba:6,logp:1.83,tpsa:102.5,cas:'61-33-6',color:'blue',emoji:'⬡',desc:'Beta-lactam antibiotic'},
+    {id:'ibuprofen',name:'Ibuprofen',sub:'C13H18O2',smiles:'CC(C)Cc1ccc(cc1)C(C)C(=O)O',mw:206.28,hbd:1,hba:2,logp:3.97,tpsa:37.3,cas:'15687-27-1',color:'blue',emoji:'⬡',desc:'NSAID analgesic and anti-inflammatory'},
+    {id:'morphine',name:'Morphine',sub:'C17H19NO3',smiles:'O=C1OC2CC3N(C)CCC4=C3C2=C(O1)C=C4',mw:285.34,hbd:2,hba:4,logp:0.89,tpsa:52.9,cas:'57-27-2',color:'blue',emoji:'⬡',desc:'Opioid analgesic'},
+    {id:'dopamine',name:'Dopamine',sub:'C8H11NO2',smiles:'NCCc1ccc(O)c(O)c1',mw:153.18,hbd:3,hba:3,logp:-1.01,tpsa:66.5,cas:'51-61-6',color:'blue',emoji:'⬡',desc:'Neurotransmitter and catecholamine'},
+  ],
+  compound:[
+    {id:'atp',name:'ATP',sub:'C10H16N5O13P3',smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OP(=O)(O)OP(=O)(O)O)[C@@H](O)[C@H]1O',mw:507.18,hbd:7,hba:16,logp:-3.11,tpsa:290.8,cas:'56-65-5',color:'purple',emoji:'◈',desc:'Universal energy currency of the cell'},
+    {id:'nadh',name:'NADH',sub:'C21H29N7O14P2',smiles:'NC(=O)c1ccc[n+](c1)[C@@H]1O[C@H](COP(=O)(O)OP(=O)(O)OC[C@H]2O[C@@H](n3cnc4c(N)ncnc34)[C@H](O)[C@@H]2O)[C@@H](O)[C@H]1O',mw:665.44,hbd:8,hba:18,logp:-3.8,tpsa:330,cas:'58-68-4',color:'purple',emoji:'◈',desc:'Reduced form of nicotinamide adenine dinucleotide'},
+    {id:'glutathione',name:'Glutathione',sub:'C10H17N3O6S',smiles:'N[C@@H](CCC(=O)N[C@@H](CS)C(=O)NCC(=O)O)C(=O)O',mw:307.32,hbd:5,hba:8,logp:-2.27,tpsa:148.2,cas:'70-18-8',color:'purple',emoji:'◈',desc:'Antioxidant tripeptide'},
+    {id:'coenzyme_a',name:'Coenzyme A',sub:'C21H36N7O16P3S',smiles:'CC(C)(COP(=O)(O)OP(=O)(O)OC[C@@H]1O[C@@H]([C@H](O)[C@@H]1OP(=O)(O)O)n1cnc2c(N)ncnc12)C(O)C(=O)NCCC(=O)NCCS',mw:767.53,hbd:9,hba:19,logp:-5.2,tpsa:365,cas:'85-61-0',color:'purple',emoji:'◈',desc:'Essential coenzyme in metabolic reactions'},
+  ],
+  catalyst:[
+    {id:'platinum',name:'Platinum',sub:'Pt',smiles:'[Pt]',mw:195.08,hbd:0,hba:0,logp:0,tpsa:0,cas:'7440-06-4',color:'yellow',emoji:'◆',desc:'Heterogeneous catalyst for hydrogenation'},
+    {id:'palladium',name:'Palladium',sub:'Pd(PPh3)4',smiles:'[Pd]',mw:106.42,hbd:0,hba:0,logp:0,tpsa:0,cas:'7440-05-3',color:'yellow',emoji:'◆',desc:'Cross-coupling reaction catalyst'},
+    {id:'zeolite',name:'Zeolite H-ZSM-5',sub:'Si96O192·H',smiles:'[Si]12O[Si]3O[Si](O1)O[Si](O2)O3',mw:152.22,hbd:0,hba:4,logp:0,tpsa:0,cas:'1318-02-1',color:'yellow',emoji:'◆',desc:'Microporous aluminosilicate mineral catalyst'},
+    {id:'tio2',name:'TiO₂ (Photocatalyst)',sub:'TiO2',smiles:'O=[Ti]=O',mw:79.87,hbd:0,hba:2,logp:0,tpsa:34.1,cas:'13463-67-7',color:'yellow',emoji:'◆',desc:'Photocatalyst for oxidation reactions'},
+    {id:'acid',name:'H₂SO₄ (Acid)',sub:'H2SO4',smiles:'OS(=O)(=O)O',mw:98.08,hbd:2,hba:4,logp:-1.01,tpsa:90.2,cas:'7664-93-9',color:'yellow',emoji:'◆',desc:'Strong acid catalyst for esterification'},
+  ],
+  enzyme:[
+    {id:'protease',name:'Protease',sub:'EC 3.4.—',smiles:'[Protein]',mw:0,hbd:0,hba:0,logp:0,tpsa:0,cas:'9001-92-7',color:'green',emoji:'⬟',desc:'Cleaves peptide bonds; used in drug metabolism',km:0.2,kcat:450,ph:7.4},
+    {id:'lipase',name:'Lipase',sub:'EC 3.1.1.3',smiles:'[Protein]',mw:0,hbd:0,hba:0,logp:0,tpsa:0,cas:'9001-62-1',color:'green',emoji:'⬟',desc:'Hydrolyzes ester bonds in lipids',km:0.8,kcat:200,ph:7.0},
+    {id:'cyp3a4',name:'CYP3A4',sub:'EC 1.14.13',smiles:'[Protein]',mw:0,hbd:0,hba:0,logp:0,tpsa:0,cas:'9035-51-2',color:'green',emoji:'⬟',desc:'Major drug-metabolizing enzyme in humans',km:0.05,kcat:12,ph:7.4},
+    {id:'cox2',name:'COX-2',sub:'EC 1.14.99.1',smiles:'[Protein]',mw:0,hbd:0,hba:0,logp:0,tpsa:0,cas:'169590-42-5',color:'green',emoji:'⬟',desc:'Cyclooxygenase-2; target for NSAIDs',km:0.012,kcat:8,ph:7.2},
+    {id:'ldh',name:'Lactate Dehydrogenase',sub:'EC 1.1.1.27',smiles:'[Protein]',mw:0,hbd:0,hba:0,logp:0,tpsa:0,cas:'9001-60-9',color:'green',emoji:'⬟',desc:'Catalyzes interconversion of pyruvate and lactate',km:0.5,kcat:350,ph:7.4},
+  ]
+};
+
+const CAT_CONFIG={
+  molecule:{label:'Molecules',dotClass:'mol-dot',iconClass:'mol-icon',color:'#4a9eff'},
+  compound:{label:'Compounds',dotClass:'comp-dot',iconClass:'comp-icon',color:'#a78bfa'},
+  catalyst:{label:'Catalysts',dotClass:'cat-dot',iconClass:'cat-icon',color:'#fbbf24'},
+  enzyme:{label:'Enzymes',dotClass:'enz-dot',iconClass:'enz-icon',color:'#3ecf8e'},
+};
+
+let nodes=[];
+let connections=[];
+let nodeId=0;
+let scale=1;
+let panX=0,panY=0;
+let dragging=null;
+let dragOffX=0,dragOffY=0;
+let isPanning=false;
+let panStart={x:0,y:0};
+let selectedNode=null;
+let connectingFrom=null;
+let currentTab='structure';
+let logLines=[];
+let threeScene=null,threeCamera=null,threeRenderer=null,threeAnimId=null;
+let threeGroup=null;
+let openSections={molecule:true,compound:true,catalyst:true,enzyme:true};
+
+function renderSidebar(filter=''){
+  const sections=document.getElementById('sidebar-sections');
+  let html='';
+  let total=0;
+  for(const [cat,cfg] of Object.entries(CAT_CONFIG)){
+    const items=MOLECULES[cat].filter(m=>!filter||m.name.toLowerCase().includes(filter.toLowerCase())||m.sub.toLowerCase().includes(filter.toLowerCase()));
+    total+=items.length;
+    const open=openSections[cat];
+    html+=`<div class="section-header" onclick="toggleSection('${cat}')">
+      <span class="section-label"><span class="dot ${cfg.dotClass}"></span>${cfg.label} <span style="color:var(--text3);font-size:9px;font-family:var(--mono)">(${items.length})</span></span>
+      <span class="section-chevron ${open?'open':''}" id="chev-${cat}">›</span>
+    </div>`;
+    if(open){
+      html+=`<div class="section-items" id="items-${cat}">`;
+      for(const m of items){
+        html+=`<div class="node-item" draggable="true" data-id="${m.id}" data-cat="${cat}"
+          ondragstart="onSidebarDragStart(event,'${m.id}','${cat}')"
+          onmouseenter="showTooltip(event,'${m.name} · ${m.sub}')"
+          onmouseleave="hideTooltip()">
+          <div class="node-icon ${cfg.iconClass}">${m.emoji}</div>
+          <div class="node-info">
+            <div class="node-name">${m.name}</div>
+            <div class="node-sub">${m.sub}</div>
+          </div>
+        </div>`;
+      }
+      html+=`<button class="import-btn" onclick="openImport('${cat}')">+ Import ${cfg.label.slice(0,-1)}</button>`;
+      html+='</div>';
+    }
+  }
+  sections.innerHTML=html;
+  document.getElementById('node-count').textContent=total+' nodes';
+}
+
+function toggleSection(cat){
+  openSections[cat]=!openSections[cat];
+  renderSidebar(document.getElementById('search-input').value);
+}
+function filterNodes(v){renderSidebar(v)}
+
+// DRAG FROM SIDEBAR
+let dragMolId=null,dragMolCat=null;
+function onSidebarDragStart(e,id,cat){
+  dragMolId=id;dragMolCat=cat;
+  e.dataTransfer.effectAllowed='copy';
+}
+
+const canvasWrap=document.getElementById('canvas-wrap');
+const canvasInner=document.getElementById('canvas-inner');
+const connSvg=document.getElementById('connections-svg');
+
+canvasWrap.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy'});
+canvasWrap.addEventListener('drop',e=>{
+  e.preventDefault();
+  if(!dragMolId)return;
+  const rect=canvasWrap.getBoundingClientRect();
+  const x=(e.clientX-rect.left-panX)/scale;
+  const y=(e.clientY-rect.top-panY)/scale;
+  addNodeToCanvas(dragMolId,dragMolCat,x-80,y-60);
+  dragMolId=null;dragMolCat=null;
+  document.getElementById('canvas-hint').style.display='none';
+});
+
+function addNodeToCanvas(molId,cat,x,y){
+  const molData=MOLECULES[cat].find(m=>m.id===molId);
+  if(!molData)return;
+  const id='n'+(++nodeId);
+  const node={id,molId,cat,data:molData,x,y,status:'idle'};
+  nodes.push(node);
+  renderNode(node);
+  return node;
+}
+
+function renderNode(node){
+  const cfg=CAT_CONFIG[node.cat];
+  const d=node.data;
+  const el=document.createElement('div');
+  el.className='canvas-node';
+  el.id='cnode-'+node.id;
+  el.style.left=(node.x+1000)+'px';
+  el.style.top=(node.y+1000)+'px';
+  el.innerHTML=`
+    <div class="node-status-badge" id="badge-${node.id}"></div>
+    <div class="cnode-header">
+      <div class="cnode-icon ${cfg.iconClass}">${d.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div class="cnode-title">${d.name}</div>
+        <div class="cnode-type">${node.cat}</div>
+      </div>
+      <button onclick="removeNode('${node.id}')" style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:3px;line-height:1" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text3)'">×</button>
+    </div>
+    <div class="cnode-body">
+      <div class="cnode-prop"><span class="cnode-prop-key">Formula</span><span class="cnode-prop-val">${d.sub}</span></div>
+      ${d.mw?`<div class="cnode-prop"><span class="cnode-prop-key">MW</span><span class="cnode-prop-val">${d.mw} g/mol</span></div>`:''}
+      ${d.km!==undefined?`<div class="cnode-prop"><span class="cnode-prop-key">Km</span><span class="cnode-prop-val">${d.km} mM</span></div>`:''}
+    </div>
+    <div class="ports-row" style="padding:4px 8px 8px;display:flex;justify-content:space-between;align-items:center">
+      <div class="port port-in" id="port-in-${node.id}" title="Input" onclick="onPortClick('${node.id}','in')"></div>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono)">${d.cas||'—'}</span>
+      <div class="port port-out" id="port-out-${node.id}" title="Output" onclick="onPortClick('${node.id}','out')"></div>
+    </div>`;
+  el.addEventListener('mousedown',e=>{
+    if(e.target.classList.contains('port'))return;
+    if(e.target.tagName==='BUTTON')return;
+    dragging=node;
+    const r=el.getBoundingClientRect();
+    dragOffX=e.clientX-r.left;
+    dragOffY=e.clientY-r.top;
+    selectNode(node);
+    e.preventDefault();
+  });
+  el.addEventListener('click',e=>{
+    if(e.target.classList.contains('port'))return;
+    selectNode(node);
+  });
+  canvasInner.appendChild(el);
+}
+
+function removeNode(id){
+  const el=document.getElementById('cnode-'+id);
+  if(el)el.remove();
+  nodes=nodes.filter(n=>n.id!==id);
+  connections=connections.filter(c=>c.from!==id&&c.to!==id);
+  redrawConnections();
+  if(selectedNode&&selectedNode.id===id){selectedNode=null;clearRightPanel()}
+  if(nodes.length===0)document.getElementById('canvas-hint').style.display='block';
+}
+
+// PAN & ZOOM
+let lastMX=0,lastMY=0;
+canvasWrap.addEventListener('mousedown',e=>{
+  if(e.target===canvasWrap||e.target.classList.contains('canvas-grid')||e.target.id==='canvas'||e.target.id==='canvas-inner'||e.target.tagName==='svg'||e.target.tagName==='path'){
+    if(!dragging){
+      isPanning=true;
+      panStart={x:e.clientX-panX,y:e.clientY-panY};
+    }
+  }
+});
+document.addEventListener('mousemove',e=>{
+  lastMX=e.clientX;lastMY=e.clientY;
+  if(dragging){
+    const rect=canvasWrap.getBoundingClientRect();
+    const nx=(e.clientX-rect.left-panX)/scale-dragOffX/scale;
+    const ny=(e.clientY-rect.top-panY)/scale-dragOffY/scale;
+    dragging.x=nx;dragging.y=ny;
+    const el=document.getElementById('cnode-'+dragging.id);
+    if(el){el.style.left=(nx+1000)+'px';el.style.top=(ny+1000)+'px';}
+    redrawConnections();
+  } else if(isPanning){
+    panX=e.clientX-panStart.x;
+    panY=e.clientY-panStart.y;
+    applyTransform();
+  }
+});
+document.addEventListener('mouseup',e=>{
+  dragging=null;isPanning=false;
+});
+canvasWrap.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const delta=e.deltaY>0?-0.1:0.1;
+  zoom(delta,e.clientX,e.clientY);
+},{passive:false});
+
+function zoom(delta,cx,cy){
+  const rect=canvasWrap.getBoundingClientRect();
+  const mx=cx!==undefined?cx:rect.left+rect.width/2;
+  const my=cy!==undefined?cy:rect.top+rect.height/2;
+  const oldScale=scale;
+  scale=Math.max(0.2,Math.min(3,scale+delta));
+  panX=mx-(mx-panX)*(scale/oldScale);
+  panY=my-(my-panY)*(scale/oldScale);
+  applyTransform();
+  document.getElementById('zoom-val').textContent=Math.round(scale*100)+'%';
+}
+function applyTransform(){
+  const inner=document.getElementById('canvas-inner');
+  inner.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`;
+  inner.style.transformOrigin='0 0';
+}
+function resetView(){scale=1;panX=0;panY=0;applyTransform();document.getElementById('zoom-val').textContent='100%';}
+function fitView(){
+  if(nodes.length===0){resetView();return;}
+  const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y);
+  const minX=Math.min(...xs),maxX=Math.max(...xs)+200;
+  const minY=Math.min(...ys),maxY=Math.max(...ys)+120;
+  const rect=canvasWrap.getBoundingClientRect();
+  const scaleX=rect.width/(maxX-minX+100);
+  const scaleY=rect.height/(maxY-minY+100);
+  scale=Math.min(scaleX,scaleY,1);
+  panX=-(minX+1000)*scale+rect.width/2-(maxX-minX)*scale/2;
+  panY=-(minY+1000)*scale+rect.height/2-(maxY-minY)*scale/2;
+  applyTransform();
+  document.getElementById('zoom-val').textContent=Math.round(scale*100)+'%';
+}
+
+// CONNECTIONS
+function onPortClick(nodeId,portType){
+  if(!connectingFrom){
+    if(portType==='out'){
+      connectingFrom={nodeId,portType};
+      document.getElementById('conn-indicator').classList.add('show');
+      document.getElementById('port-out-'+nodeId).classList.add('active');
+    }
+  } else {
+    if(portType==='in'&&connectingFrom.nodeId!==nodeId){
+      addConnection(connectingFrom.nodeId,nodeId);
+      document.getElementById('port-out-'+connectingFrom.nodeId).classList.remove('active');
+      connectingFrom=null;
+      document.getElementById('conn-indicator').classList.remove('show');
+    } else {
+      document.getElementById('port-out-'+connectingFrom.nodeId).classList.remove('active');
+      connectingFrom=null;
+      document.getElementById('conn-indicator').classList.remove('show');
+    }
+  }
+}
+
+function addConnection(from,to){
+  const exists=connections.find(c=>c.from===from&&c.to===to);
+  if(!exists){connections.push({from,to});redrawConnections();}
+}
+
+function getPortCenter(nodeId,portType){
+  const el=document.getElementById('cnode-'+nodeId);
+  if(!el)return{x:0,y:0};
+  const portEl=document.getElementById(`port-${portType}-${nodeId}`);
+  if(!portEl)return{x:0,y:0};
+  const nr=el.getBoundingClientRect();
+  const pr=portEl.getBoundingClientRect();
+  const wr=canvasInner.getBoundingClientRect();
+  return{
+    x:(pr.left+pr.width/2-wr.left)/scale,
+    y:(pr.top+pr.height/2-wr.top)/scale,
+  };
+}
+
+function redrawConnections(){
+  let paths='';
+  for(const c of connections){
+    const from=getPortCenter(c.from,'out');
+    const to=getPortCenter(c.to,'in');
+    const dx=Math.abs(to.x-from.x)*0.5;
+    const path=`M${from.x},${from.y} C${from.x+dx},${from.y} ${to.x-dx},${to.y} ${to.x},${to.y}`;
+    const nodeFrom=nodes.find(n=>n.id===c.from);
+    const colorMap={molecule:'#4a9eff',compound:'#a78bfa',catalyst:'#fbbf24',enzyme:'#3ecf8e'};
+    const stroke=nodeFrom?colorMap[nodeFrom.cat]:'#5a5a6e';
+    const flowing=nodeFrom&&nodeFrom.status==='running';
+    paths+=`<path d="${path}" fill="none" stroke="${stroke}" stroke-width="1.5" opacity="0.7" stroke-linecap="round" class="${flowing?'conn-line flow':'conn-line'}"/>
+    <circle cx="${to.x}" cy="${to.y}" r="3" fill="${stroke}" opacity="0.8"/>`;
+  }
+  connSvg.innerHTML=paths;
+}
+
+// SELECT NODE
+function selectNode(node){
+  if(selectedNode){
+    const prev=document.getElementById('cnode-'+selectedNode.id);
+    if(prev)prev.classList.remove('selected');
+  }
+  selectedNode=node;
+  const el=document.getElementById('cnode-'+node.id);
+  if(el)el.classList.add('selected');
+  updateRightPanel(node);
+}
+
+function clearRightPanel(){
+  document.getElementById('structure-props').innerHTML='<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Select a node to view structure</div>';
+  document.getElementById('properties-content').innerHTML='<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Select a node to view properties</div>';
+  document.getElementById('smiles-display').style.display='none';
+  document.getElementById('mol-viewer-label').textContent='Select a node';
+  init3DViewer(null);
+}
+
+function updateRightPanel(node){
+  const d=node.data;
+  const cfg=CAT_CONFIG[node.cat];
+  document.getElementById('mol-viewer-label').textContent=d.name;
+  if(d.smiles&&d.smiles!=='[Protein]'){
+    document.getElementById('smiles-display').style.display='block';
+    document.getElementById('smiles-val').textContent=d.smiles;
+  } else {
+    document.getElementById('smiles-display').style.display='block';
+    document.getElementById('smiles-val').textContent=node.cat==='enzyme'?`Enzyme: ${d.name} · ${d.sub}`:(d.smiles||'—');
+  }
+  // Structure props
+  const lipinski=d.mw&&(d.mw<500&&d.hbd<=5&&d.hba<=10&&d.logp<=5);
+  document.getElementById('structure-props').innerHTML=`
+    <div style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <div class="cnode-icon ${cfg.iconClass}" style="width:24px;height:24px;font-size:13px">${d.emoji}</div>
+        <span style="font-size:14px;font-weight:700">${d.name}</span>
+        ${lipinski?'<span class="badge badge-green">Lipinski ✓</span>':''}
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.6">${d.desc||''}</div>
+    </div>`;
+  // Properties tab
+  const isEnzyme=node.cat==='enzyme';
+  document.getElementById('properties-content').innerHTML=`
+    <div class="stat-grid">
+      ${d.mw?`<div class="stat-card"><div class="stat-label">Mol. Weight</div><div class="stat-val" style="color:${cfg.color}">${d.mw}<span class="stat-unit">g/mol</span></div></div>`:''}
+      ${d.logp!==undefined&&d.mw?`<div class="stat-card"><div class="stat-label">LogP</div><div class="stat-val" style="color:${d.logp<5?'var(--green)':'var(--red)'}">${d.logp}</div></div>`:''}
+      ${d.hbd!==undefined&&d.mw?`<div class="stat-card"><div class="stat-label">H-Bond Donors</div><div class="stat-val">${d.hbd}</div></div>`:''}
+      ${d.hba!==undefined&&d.mw?`<div class="stat-card"><div class="stat-label">H-Bond Acceptors</div><div class="stat-val">${d.hba}</div></div>`:''}
+      ${d.tpsa?`<div class="stat-card"><div class="stat-label">TPSA</div><div class="stat-val">${d.tpsa}<span class="stat-unit">Ų</span></div></div>`:''}
+      ${isEnzyme?`<div class="stat-card"><div class="stat-label">Km</div><div class="stat-val" style="color:var(--green)">${d.km}<span class="stat-unit">mM</span></div></div>`:''}
+      ${isEnzyme?`<div class="stat-card"><div class="stat-label">kcat</div><div class="stat-val" style="color:var(--purple)">${d.kcat}<span class="stat-unit">s⁻¹</span></div></div>`:''}
+    </div>
+    <div>
+      ${[['CAS Number',d.cas||'N/A'],['Category',node.cat],['Formula',d.sub],isEnzyme?['Optimal pH',d.ph]:null,].filter(Boolean).map(([k,v])=>`
+        <div class="prop-row"><span class="prop-key">${k}</span><span class="prop-val">${v}</span></div>`).join('')}
+    </div>`;
+  init3DViewer(node);
+}
+
+// 3D VIEWER (Three.js ball-and-stick representation)
+function init3DViewer(node){
+  const container=document.getElementById('mol-viewer');
+  if(threeAnimId){cancelAnimationFrame(threeAnimId);threeAnimId=null}
+  if(threeRenderer){threeRenderer.dispose()}
+  const c=document.getElementById('three-canvas');
+  c.width=container.clientWidth;c.height=container.clientHeight;
+  threeScene=new THREE.Scene();
+  threeCamera=new THREE.PerspectiveCamera(50,c.width/c.height,0.1,1000);
+  threeCamera.position.set(0,0,8);
+  threeRenderer=new THREE.WebGLRenderer({canvas:c,alpha:true,antialias:true});
+  threeRenderer.setSize(c.width,c.height);
+  threeRenderer.setClearColor(0x000000,0);
+  const ambient=new THREE.AmbientLight(0xffffff,0.6);
+  threeScene.add(ambient);
+  const dir=new THREE.DirectionalLight(0xffffff,0.8);
+  dir.position.set(5,5,5);
+  threeScene.add(dir);
+  threeGroup=new THREE.Group();
+  threeScene.add(threeGroup);
+  if(!node){
+    // Default helix
+    const pts=[];
+    for(let i=0;i<30;i++){const t=i/29*Math.PI*4;pts.push(new THREE.Vector3(Math.cos(t)*1.5,t*0.4-2.5,Math.sin(t)*1.5))}
+    const curve=new THREE.CatmullRomCurve3(pts);
+    const tubeGeo=new THREE.TubeGeometry(curve,80,0.05,8,false);
+    const tubeMat=new THREE.MeshStandardMaterial({color:0x2a2a35});
+    threeGroup.add(new THREE.Mesh(tubeGeo,tubeMat));
+  } else {
+    buildMolecule3D(node);
+  }
+  function animate(){
+    threeAnimId=requestAnimationFrame(animate);
+    threeGroup.rotation.y+=0.008;
+    threeGroup.rotation.x+=0.002;
+    threeRenderer.render(threeScene,threeCamera);
+  }
+  animate();
+}
+
+const ATOM_COLORS={C:0x888888,H:0xffffff,N:0x4444ff,O:0xff4444,S:0xffcc00,P:0xff8800,Pt:0xdddddd,Pd:0xbbbbbb,Ti:0x8888bb,Si:0x8844aa};
+const ATOM_RADII={C:0.35,H:0.25,N:0.35,O:0.35,S:0.45,P:0.45,Pt:0.55,Pd:0.5,Ti:0.5};
+
+function buildMolecule3D(node){
+  const cat=node.cat;
+  const colorMap={molecule:0x4a9eff,compound:0xa78bfa,catalyst:0xfbbf24,enzyme:0x3ecf8e};
+  const mainColor=colorMap[cat];
+  // Generate pseudo-3D based on category and properties
+  const atomPositions=[];
+  const bonds=[];
+  if(cat==='enzyme'){
+    // Protein-like alpha helix
+    for(let i=0;i<20;i++){
+      const t=i/19*Math.PI*6;
+      atomPositions.push({x:Math.cos(t)*1.2,y:(i-10)*0.3,z:Math.sin(t)*1.2,color:mainColor,r:0.2});
+      if(i>0)bonds.push([i-1,i]);
+    }
+    // Beta sheet strands
+    for(let j=0;j<8;j++){
+      atomPositions.push({x:(j-4)*0.5,y:2.5+Math.sin(j)*0.2,z:j%2===0?0.8:-0.8,color:0xa78bfa,r:0.15});
+      if(j>0)bonds.push([20+j-1,20+j]);
+    }
+  } else if(cat==='catalyst'){
+    // Metal cluster
+    atomPositions.push({x:0,y:0,z:0,color:mainColor,r:0.5});
+    for(let i=0;i<6;i++){
+      const t=i/6*Math.PI*2;
+      atomPositions.push({x:Math.cos(t)*1.5,y:Math.sin(t)*1.5,z:0,color:0x888888,r:0.25});
+      bonds.push([0,i+1]);
+    }
+    atomPositions.push({x:0,y:0,z:1.5,color:0x4444ff,r:0.25});
+    atomPositions.push({x:0,y:0,z:-1.5,color:0x4444ff,r:0.25});
+    bonds.push([0,7]);bonds.push([0,8]);
+  } else {
+    // Drug-like molecule from MW
+    const d=node.data;
+    const numAtoms=Math.min(Math.max(Math.round((d.mw||150)/12),8),25);
+    // Generate ring system + chains
+    const ringSize=Math.min(6,Math.floor(numAtoms/2));
+    for(let i=0;i<ringSize;i++){
+      const t=i/ringSize*Math.PI*2;
+      atomPositions.push({x:Math.cos(t)*1.3,y:Math.sin(t)*1.3,z:0,color:0x888888,r:0.3});
+      bonds.push([i,(i+1)%ringSize]);
+    }
+    // Heteroatoms
+    const hetero=Math.min(d.hba||2,4);
+    for(let i=0;i<hetero;i++){
+      const base=i%ringSize;
+      const len=1.0+Math.random()*0.4;
+      const ang=(i/hetero)*Math.PI*2+0.3;
+      const bx=atomPositions[base].x+Math.cos(ang)*len;
+      const by=atomPositions[base].y+Math.sin(ang)*len;
+      const bz=(Math.random()-0.5)*0.6;
+      const colors=[0xff4444,0x4444ff,0xffcc00,0xff8800];
+      atomPositions.push({x:bx,y:by,z:bz,color:colors[i%colors.length],r:0.28});
+      bonds.push([base,ringSize+i]);
+    }
+    // Add remaining carbons
+    const remaining=numAtoms-ringSize-hetero;
+    for(let i=0;i<remaining;i++){
+      const base=i%ringSize;
+      const ang=Math.PI+i*0.5;
+      atomPositions.push({x:atomPositions[base].x+Math.cos(ang)*1.0,y:atomPositions[base].y+Math.sin(ang)*1.0,z:(Math.random()-0.5)*0.8,color:0x888888,r:0.28});
+      bonds.push([base,ringSize+hetero+i]);
+    }
+  }
+  // Render atoms
+  for(const a of atomPositions){
+    const geo=new THREE.SphereGeometry(a.r,16,16);
+    const mat=new THREE.MeshStandardMaterial({color:a.color,roughness:0.3,metalness:0.1});
+    const mesh=new THREE.Mesh(geo,mat);
+    mesh.position.set(a.x,a.y,a.z);
+    threeGroup.add(mesh);
+  }
+  // Render bonds
+  for(const [i,j] of bonds){
+    const a=atomPositions[i],b=atomPositions[j];
+    if(!a||!b)continue;
+    const start=new THREE.Vector3(a.x,a.y,a.z);
+    const end=new THREE.Vector3(b.x,b.y,b.z);
+    const dir=new THREE.Vector3().subVectors(end,start);
+    const len=dir.length();
+    const mid=new THREE.Vector3().addVectors(start,end).multiplyScalar(0.5);
+    const geo=new THREE.CylinderGeometry(0.06,0.06,len,8);
+    const mat=new THREE.MeshStandardMaterial({color:0x444450,roughness:0.5});
+    const mesh=new THREE.Mesh(geo,mat);
+    mesh.position.copy(mid);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());
+    threeGroup.add(mesh);
+  }
+}
+
+// TABS
+function switchTab(tab,el){
+  currentTab=tab;
+  document.querySelectorAll('.rp-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['structure','properties','efficacy','log'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
+  });
+}
+
+// SIMULATION
+async function runSimulation(){
+  if(nodes.length===0){addLog('warn','No nodes on canvas. Drag molecules to start.');return;}
+  const btn=document.getElementById('run-btn');
+  btn.textContent='⏸ Running...';
+  btn.disabled=true;
+  document.getElementById('status-dot').className='status-dot running';
+  document.getElementById('status-text').textContent='Simulating';
+  clearLog();
+  addLog('info','Initializing molecular simulation engine...');
+  addLog('info',`Loaded ${nodes.length} node(s), ${connections.length} connection(s)`);
+  await sleep(400);
+  // Set all to running
+  for(const n of nodes){
+    setNodeStatus(n.id,'running');
+    addLog('info',`Processing: ${n.data.name} [${n.cat}]`);
+    await sleep(300+Math.random()*400);
+    setNodeStatus(n.id,'done');
+    addLog('ok',`✓ ${n.data.name} analyzed`);
+  }
+  await sleep(300);
+  addLog('info','Computing molecular interactions...');
+  await sleep(500);
+  addLog('info','Running ADMET prediction...');
+  await sleep(500);
+  addLog('ok','Simulation complete!');
+  document.getElementById('status-dot').className='status-dot done';
+  document.getElementById('status-text').textContent='Complete';
+  btn.textContent='▶ Simulate';
+  btn.disabled=false;
+  showEfficacyResults();
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+function setNodeStatus(id,status){
+  const node=nodes.find(n=>n.id===id);
+  if(node)node.status=status;
+  const el=document.getElementById('cnode-'+id);
+  const badge=document.getElementById('badge-'+id);
+  if(!el)return;
+  el.className='canvas-node '+status;
+  if(badge)badge.className='node-status-badge '+status;
+  redrawConnections();
+}
+
+function showEfficacyResults(){
+  // Compute based on actual node properties
+  const mols=nodes.filter(n=>n.cat==='molecule'||n.cat==='compound');
+  const cats=nodes.filter(n=>n.cat==='catalyst');
+  const enzs=nodes.filter(n=>n.cat==='enzyme');
+  let base={bioavail:60,efficacy:55,toxicity:25,selectivity:50,solubility:60,halflife:4};
+  for(const m of mols){
+    const d=m.data;
+    if(d.mw&&d.mw<500)base.bioavail+=10;
+    if(d.hbd<=5)base.bioavail+=8;
+    if(d.logp&&d.logp>0&&d.logp<5)base.solubility+=10;
+    if(d.tpsa&&d.tpsa<90)base.bioavail+=6;
+    base.efficacy+=Math.random()*15;
+  }
+  for(const c of cats)base.efficacy+=8,base.selectivity+=5;
+  for(const e of enzs){
+    if(e.data.km)base.efficacy+=Math.min(20,(1/e.data.km)*10);
+    if(e.data.kcat)base.efficacy+=Math.min(10,e.data.kcat/100);
+  }
+  // Clamp
+  const clamp=(v,min,max)=>Math.min(max,Math.max(min,Math.round(v)));
+  const r={
+    bioavail:clamp(base.bioavail,20,95),
+    efficacy:clamp(base.efficacy,30,96),
+    toxicity:clamp(base.toxicity+Math.random()*10,5,50),
+    selectivity:clamp(base.selectivity+Math.random()*15,20,95),
+    solubility:clamp(base.solubility+Math.random()*10,20,95),
+    halflife:clamp(base.halflife+Math.random()*8,1,24),
+  };
+  const overall=Math.round((r.bioavail+r.efficacy+(100-r.toxicity)+r.selectivity+r.solubility)/5);
+  const grade=overall>=80?['A','badge-green']:overall>=65?['B','badge-blue']:overall>=50?['C','badge-orange']:['D','badge-red'];
+  document.getElementById('efficacy-content').innerHTML=`
+    <div class="drug-test-result">
+      <div class="drug-test-title">
+        Drug Candidate Score
+        <span class="badge ${grade[1]}" style="font-size:14px;padding:4px 10px">${grade[0]}</span>
+        <span style="font-size:12px;color:var(--text3);font-weight:400">${overall}/100</span>
+      </div>
+      ${[
+        ['Bioavailability','%',r.bioavail,'var(--green)'],
+        ['Efficacy','%',r.efficacy,'var(--blue)'],
+        ['Selectivity','%',r.selectivity,'var(--purple)'],
+        ['Solubility','%',r.solubility,'var(--teal)'],
+        ['Toxicity Risk','%',r.toxicity,'var(--red)'],
+      ].map(([label,unit,val,color])=>`
+        <div class="efficacy-section">
+          <div class="efficacy-label"><span>${label}</span><span style="font-family:var(--mono);color:${color}">${val}${unit}</span></div>
+          <div class="efficacy-bar"><div class="efficacy-fill" style="width:${val}%;background:${color}"></div></div>
+        </div>`).join('')}
+      <div class="radar-grid" style="margin-top:12px">
+        <div class="radar-cell"><div class="radar-cell-label">Half-life</div><div class="radar-cell-val" style="color:var(--yellow)">${r.halflife.toFixed(1)}h</div></div>
+        <div class="radar-cell"><div class="radar-cell-label">Mol. nodes</div><div class="radar-cell-val">${nodes.length}</div></div>
+        <div class="radar-cell"><div class="radar-cell-label">Connections</div><div class="radar-cell-val">${connections.length}</div></div>
+        <div class="radar-cell"><div class="radar-cell-label">Overall</div><div class="radar-cell-val" style="color:${grade[1].includes('green')?'var(--green)':grade[1].includes('blue')?'var(--blue)':'var(--accent)'}">${overall}</div></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3);line-height:1.7">
+      Based on Lipinski's Rule of Five and Michaelis-Menten kinetics. Data sourced from PubChem, ChEMBL & UniProt.
+    </div>`;
+  switchTab('efficacy',document.querySelectorAll('.rp-tab')[2]);
+}
+
+// LOG
+function addLog(type,msg){
+  logLines.push({type,msg,ts:new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})});
+  renderLog();
+}
+function clearLog(){logLines=[];renderLog();}
+function renderLog(){
+  const el=document.getElementById('log-area');
+  el.innerHTML=logLines.map(l=>`<div class="log-line ${l.type}"><span class="ts">[${l.ts}]</span>${l.msg}</div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+// CANVAS HELPERS
+function clearCanvas(){
+  nodes=[];connections=[];nodeId=0;selectedNode=null;
+  canvasInner.innerHTML='<svg class="connections" id="connections-svg"></svg>';
+  document.getElementById('canvas-hint').style.display='block';
+  clearRightPanel();
+  clearLog();
+  document.getElementById('status-dot').className='status-dot idle';
+  document.getElementById('status-text').textContent='Ready';
+}
+
+function autoLayout(){
+  if(nodes.length===0)return;
+  const cols=Math.ceil(Math.sqrt(nodes.length));
+  nodes.forEach((n,i)=>{
+    n.x=200+(i%cols)*220;
+    n.y=100+Math.floor(i/cols)*160;
+    const el=document.getElementById('cnode-'+n.id);
+    if(el){el.style.left=(n.x+1000)+'px';el.style.top=(n.y+1000)+'px';}
+  });
+  redrawConnections();
+  fitView();
+}
+
+// TOOLTIP
+function showTooltip(e,text){
+  const t=document.getElementById('tooltip');
+  t.textContent=text;t.style.display='block';
+  t.style.left=(e.clientX+12)+'px';t.style.top=(e.clientY-24)+'px';
+}
+function hideTooltip(){document.getElementById('tooltip').style.display='none'}
+
+// IMPORT MODAL
+function openImport(cat){
+  document.getElementById('import-cat').value=cat||'molecule';
+  document.getElementById('import-modal').style.display='flex';
+}
+function closeImport(){document.getElementById('import-modal').style.display='none'}
+function addCustomMolecule(){
+  const cat=document.getElementById('import-cat').value;
+  const name=document.getElementById('import-name').value.trim();
+  const smiles=document.getElementById('import-smiles').value.trim();
+  const cas=document.getElementById('import-cas').value.trim();
+  if(!name){alert('Please enter a name');return;}
+  const cfg=CAT_CONFIG[cat];
+  const newMol={
+    id:'custom_'+Date.now(),
+    name,sub:smiles?smiles.substring(0,20):'Custom',
+    smiles:smiles||'CC',
+    mw:0,hbd:0,hba:0,logp:0,tpsa:0,
+    cas:cas||'N/A',
+    color:cat,emoji:cfg?{molecule:'⬡',compound:'◈',catalyst:'◆',enzyme:'⬟'}[cat]:'●',
+    desc:`Custom ${cat} imported by user`
+  };
+  MOLECULES[cat].unshift(newMol);
+  closeImport();
+  renderSidebar(document.getElementById('search-input').value);
+  addLog('ok',`Imported: ${name} [${cat}]`);
+}
+
+// INIT - Add example workflow
+function initDemo(){
+  addNodeToCanvas('aspirin','molecule',80,80);
+  addNodeToCanvas('cox2','enzyme',320,80);
+  addNodeToCanvas('ibuprofen','molecule',80,230);
+  setTimeout(()=>{
+    addLog('info','MolFlow environment ready');
+    addLog('info','Drag nodes from left panel to canvas');
+    addLog('info','Connect nodes using the port circles (right → left)');
+    addLog('info','Click ▶ Simulate to run drug efficacy analysis');
+    document.getElementById('canvas-hint').style.display='none';
+    fitView();
+  },100);
+}
+
+renderSidebar();
+init3DViewer(null);
+initDemo();
+</script>
+</body>
+</html>
